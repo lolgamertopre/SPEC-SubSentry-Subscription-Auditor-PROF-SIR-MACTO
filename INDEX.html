@@ -1,20 +1,649 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SubSentry — Subscription Auditor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── RESET & BASE ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #111118;
+      --surface2:  #1a1a24;
+      --border:    #2a2a3a;
+      --accent:    #ff4d6d;
+      --accent2:   #ff8fa3;
+      --gold:      #ffd166;
+      --green:     #06d6a0;
+      --text:      #f0f0f8;
+      --muted:     #6b6b85;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-head);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+    }
+
+    /* ── BACKGROUND GRID ──────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,77,109,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,77,109,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── HEADER ───────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    .logo h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .logo p {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+      letter-spacing: 0.04em;
+    }
+
+    .header-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--accent);
+      background: rgba(255,77,109,.1);
+      border: 1px solid rgba(255,77,109,.2);
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── DASHBOARD METRICS ────────────────────────── */
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 2rem;
+    }
+
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .metric.burn::after  { background: var(--accent); }
+    .metric.proj::after  { background: var(--gold); }
+    .metric.saved::after { background: var(--green); }
+
+    .metric-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .metric-value {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric.burn  .metric-value { color: var(--accent); }
+    .metric.proj  .metric-value { color: var(--gold); }
+    .metric.saved .metric-value { color: var(--green); }
+
+    .metric-sub {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ── SAVINGS BANNER ───────────────────────────── */
+    .savings-banner {
+      display: none;
+      background: rgba(6,214,160,.08);
+      border: 1px solid rgba(6,214,160,.25);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--green);
+    }
+
+    /* ── FORM CARD ────────────────────────────────── */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .form-card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      margin-bottom: 1.25rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .field label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 13px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--accent);
+    }
+
+    .field input::placeholder { color: var(--muted); }
+
+    .field select option {
+      background: var(--surface2);
+    }
+
+    .btn-add {
+      background: var(--accent);
+      border: none;
+      border-radius: 9px;
+      padding: 10px 20px;
+      color: #fff;
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity .2s, transform .1s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-add:hover  { opacity: .88; }
+    .btn-add:active { transform: scale(.97); }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      width: 15px; height: 15px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .toggle-row label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    /* ── SECTION HEADER ───────────────────────────── */
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .section-head h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.2px;
+    }
+
+    .filter-btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--accent2);
+      background: none;
+      border: 1px solid rgba(255,143,163,.2);
+      border-radius: 20px;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .filter-btn:hover { background: rgba(255,143,163,.08); }
+
+    /* ── SUBSCRIPTION CARDS ───────────────────────── */
+    .subs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sub-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: border-color .2s, transform .15s;
+      animation: slideIn .25s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .sub-card:hover { border-color: #3a3a4a; transform: translateY(-1px); }
+
+    .sub-card.unused {
+      border-color: rgba(255,77,109,.3);
+      background: rgba(255,77,109,.04);
+    }
+
+    .sub-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      font-family: var(--font-head);
+      letter-spacing: -0.3px;
+    }
+
+    .sub-info { flex: 1; min-width: 0; }
+
+    .sub-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sub-detail {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .unused-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(255,77,109,.12);
+      color: var(--accent);
+      border: 1px solid rgba(255,77,109,.25);
+      white-space: nowrap;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .sub-cost { text-align: right; margin-right: 10px; }
+
+    .sub-monthly {
+      font-family: var(--font-mono);
+      font-size: 17px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .sub-original {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .btn-cancel {
+      border: 1px solid rgba(255,77,109,.3);
+      border-radius: 9px;
+      padding: 7px 14px;
+      font-family: var(--font-head);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      background: transparent;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+      white-space: nowrap;
+    }
+
+    .btn-cancel:hover  { background: rgba(255,77,109,.1); }
+    .btn-cancel:active { transform: scale(.96); }
+
+    /* ── EMPTY STATE ──────────────────────────────── */
+    .empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+    }
+
+    .empty span { font-size: 28px; display: block; margin-bottom: 10px; }
+
+    /* ── RESPONSIVE ───────────────────────────────── */
+    @media (max-width: 620px) {
+      .dashboard  { grid-template-columns: 1fr 1fr; }
+      .form-row   { grid-template-columns: 1fr 1fr; }
+      .btn-add    { grid-column: 1 / -1; }
+      .metric-value { font-size: 24px; }
+    }
+
+    @media (max-width: 420px) {
+      .dashboard { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
-    <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:10px">
-  <input type="text" id="svc-name" placeholder="Service name" />
-  <input type="number" id="svc-cost" placeholder="Cost" />
-  <select id="svc-cycle">
-    <option value="monthly">Monthly</option>
-    <option value="yearly">Yearly</option>
-  </select>
-  <button onclick="addSub()">+ Add</button>
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div>
+        <h1>SubSentry</h1>
+        <p>subscription auditor</p>
+      </div>
+    </div>
+    <span class="header-tag">BUDGET GUARD</span>
+  </header>
+
+  <!-- DASHBOARD -->
+  <div class="dashboard">
+    <div class="metric burn">
+      <div class="metric-label">Monthly Burn</div>
+      <div class="metric-value" id="total-burn">$0.00</div>
+      <div class="metric-sub">normalized to /mo</div>
+    </div>
+    <div class="metric proj">
+      <div class="metric-label">Annual Projection</div>
+      <div class="metric-value" id="annual-proj">$0.00</div>
+      <div class="metric-sub">if nothing cancelled</div>
+    </div>
+    <div class="metric saved">
+      <div class="metric-label">Saved This Session</div>
+      <div class="metric-value" id="saved">$0.00</div>
+      <div class="metric-sub">cancelled subscriptions</div>
+    </div>
+  </div>
+
+  <!-- SAVINGS BANNER -->
+  <div class="savings-banner" id="savings-banner"></div>
+
+  <!-- ADD FORM -->
+  <div class="form-card">
+    <h2>// Add Subscription</h2>
+    <div class="form-row">
+      <div class="field">
+        <label for="svc-name">Service Name</label>
+        <input type="text" id="svc-name" placeholder="e.g. Netflix" />
+      </div>
+      <div class="field">
+        <label for="svc-cost">Cost ($)</label>
+        <input type="number" id="svc-cost" placeholder="15.00" min="0" step="0.01" />
+      </div>
+      <div class="field">
+        <label for="svc-cycle">Billing Cycle</label>
+        <select id="svc-cycle">
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <button class="btn-add" onclick="addSub()">+ Add</button>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="mark-unused" />
+      <label for="mark-unused">Mark as unused (not used in 3+ months)</label>
+    </div>
+  </div>
+
+  <!-- SUBSCRIPTION LIST -->
+  <div class="section-head">
+    <h2>Active Subscriptions</h2>
+    <button class="filter-btn" id="filter-btn" onclick="toggleFilter()">Show unused only</button>
+  </div>
+  <div class="subs-list" id="subs-list"></div>
+
 </div>
-    
+
+<script>
+  /* ── DATA ───────────────────────────────────────── */
+  let subs = [];
+  let savedTotal = 0;
+  let showUnusedOnly = false;
+
+  /* ── CORE LOGIC ─────────────────────────────────── */
+
+  // Normalize any cost to monthly equivalent
+  function monthlyEquiv(cost, cycle) {
+    return cycle === 'yearly' ? cost / 12 : cost;
+    // Example: Adobe $120/year → $120 / 12 = $10.00/mo
+  }
+
+  // Generate color palette for icon based on name
+  function iconStyle(name) {
+    const palettes = [
+      { bg: 'rgba(255,77,109,.15)',  color: '#ff4d6d' },
+      { bg: 'rgba(255,209,102,.15)', color: '#ffd166' },
+      { bg: 'rgba(6,214,160,.15)',   color: '#06d6a0' },
+      { bg: 'rgba(100,149,237,.15)', color: '#6495ed' },
+      { bg: 'rgba(200,130,255,.15)', color: '#c882ff' },
+    ];
+    return palettes[name.charCodeAt(0) % palettes.length];
+  }
+
+  // Get 2-letter initials from service name
+  function initials(name) {
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  /* ── ADD SUBSCRIPTION ───────────────────────────── */
+  function addSub() {
+    const name  = document.getElementById('svc-name').value.trim();
+    const cost  = parseFloat(document.getElementById('svc-cost').value);
+    const cycle = document.getElementById('svc-cycle').value;
+    const unused = document.getElementById('mark-unused').checked;
+
+    // Validation — all fields required, cost must be positive
+    if (!name || isNaN(cost) || cost <= 0) {
+      document.getElementById('svc-name').focus();
+      return;
+    }
+
+    subs.push({ id: Date.now(), name, cost, cycle, unused });
+
+    // Clear form
+    document.getElementById('svc-name').value = '';
+    document.getElementById('svc-cost').value = '';
+    document.getElementById('mark-unused').checked = false;
+
+    render(); // re-draw everything
+  }
+
+  /* ── CANCEL SUBSCRIPTION ────────────────────────── */
+  function cancelSub(id) {
+    const sub = subs.find(s => s.id === id);
+    if (!sub) return;
+
+    savedTotal += monthlyEquiv(sub.cost, sub.cycle); // track savings
+    subs = subs.filter(s => s.id !== id);            // remove it
+
+    // Show savings banner
+    const banner = document.getElementById('savings-banner');
+    banner.style.display = 'block';
+    banner.textContent = `✓ You've saved $${savedTotal.toFixed(2)}/month by cancelling subscriptions this session.`;
+
+    render();
+  }
+
+  /* ── FILTER TOGGLE ──────────────────────────────── */
+  function toggleFilter() {
+    showUnusedOnly = !showUnusedOnly;
+    document.getElementById('filter-btn').textContent =
+      showUnusedOnly ? 'Show all' : 'Show unused only';
+    render();
+  }
+
+  /* ── RENDER (re-draws entire UI from subs array) ── */
+  function render() {
+    const list = document.getElementById('subs-list');
+    const visible = showUnusedOnly ? subs.filter(s => s.unused) : subs;
+
+    // Empty state
+    if (subs.length === 0) {
+      list.innerHTML = `
+        <div class="empty">
+          <span>📋</span>
+          No subscriptions yet. Add your first one above.
+        </div>`;
+    } else if (visible.length === 0) {
+      list.innerHTML = `
+        <div class="empty">
+          <span>✅</span>
+          No unused subscriptions found.
+        </div>`;
+    } else {
+      // Build subscription cards
+      list.innerHTML = visible.map(s => {
+        const monthly = monthlyEquiv(s.cost, s.cycle);
+        const style   = iconStyle(s.name);
+        return `
+          <div class="sub-card ${s.unused ? 'unused' : ''}">
+            <div class="sub-icon" style="background:${style.bg}; color:${style.color}">
+              ${initials(s.name)}
+            </div>
+            <div class="sub-info">
+              <div class="sub-name">${s.name}</div>
+              <div class="sub-detail">
+                ${s.cycle === 'yearly' ? `Billed yearly ($${s.cost.toFixed(2)}/yr)` : 'Billed monthly'}
+                ${s.unused ? ' · Unused 3+ months' : ''}
+              </div>
+            </div>
+            ${s.unused ? '<span class="unused-badge">Unused</span>' : ''}
+            <div class="sub-cost">
+              <div class="sub-monthly">$${monthly.toFixed(2)}/mo</div>
+              ${s.cycle === 'yearly'
+                ? `<div class="sub-original">($${s.cost.toFixed(2)}/yr ÷ 12)</div>`
+                : ''}
+            </div>
+            <button class="btn-cancel" onclick="cancelSub(${s.id})">Cancel</button>
+          </div>`;
+      }).join('');
+    }
+
+    // Update dashboard numbers
+    const totalMonthly = subs.reduce((sum, s) => sum + monthlyEquiv(s.cost, s.cycle), 0);
+    document.getElementById('total-burn').textContent  = '$' + totalMonthly.toFixed(2);
+    document.getElementById('annual-proj').textContent = '$' + (totalMonthly * 12).toFixed(2);
+    document.getElementById('saved').textContent       = '$' + savedTotal.toFixed(2);
+  }
+
+  /* ── KEYBOARD SUPPORT ───────────────────────────── */
+  document.getElementById('svc-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addSub();
+  });
+  document.getElementById('svc-cost').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addSub();
+  });
+
+  // Initial render (shows empty state)
+  render();
+</script>
 </body>
 </html>
