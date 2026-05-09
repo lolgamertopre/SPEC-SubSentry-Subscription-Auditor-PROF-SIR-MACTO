@@ -1,9 +1,162 @@
-<div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:10px">
-  <input type="text" id="svc-name" placeholder="Service name" />
-  <input type="number" id="svc-cost" placeholder="Cost" />
-  <select id="svc-cycle">
-    <option value="monthly">Monthly</option>
-    <option value="yearly">Yearly</option>
-  </select>
-  <button onclick="addSub()">+ Add</button>
-</div>~
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SubSentry — Subscription Auditor</title>
+<link href="sheesh.css" rel="stylesheet"/>
+
+</head>
+<body>
+<div class="container">
+
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <div><h1>SubSentry</h1><p>subscription auditor</p></div>
+    </div>
+    <span class="header-tag">BUDGET GUARD</span>
+  </header>
+
+  <div class="dashboard">
+    <div class="metric burn">
+      <div class="metric-label">Monthly Burn</div>
+      <div class="metric-value" id="total-burn">$0.00</div>
+      <div class="metric-sub">normalized to /mo</div>
+    </div>
+    <div class="metric proj">
+      <div class="metric-label">Annual Projection</div>
+      <div class="metric-value" id="annual-proj">$0.00</div>
+      <div class="metric-sub">if nothing cancelled</div>
+    </div>
+    <div class="metric saved">
+      <div class="metric-label">Saved This Session</div>
+      <div class="metric-value" id="saved">$0.00</div>
+      <div class="metric-sub">cancelled subscriptions</div>
+    </div>
+  </div>
+
+  <div id="savings-banner"></div>
+
+  <div class="form-card">
+    <h2>// Add Subscription</h2>
+    <div class="form-row">
+      <div class="field">
+        <label>Service Name</label>
+        <input id="svc-name" type="text" placeholder="e.g. Netflix"/>
+      </div>
+      <div class="field">
+        <label>Cost ($)</label>
+        <input id="svc-cost" type="number" placeholder="15.00" min="0" step="0.01"/>
+      </div>
+      <div class="field">
+        <label>Billing Cycle</label>
+        <select id="svc-cycle">
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <button class="btn-add" onclick="addSub()">+ Add</button>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="mark-unused"/>
+      <label for="mark-unused">Mark as unused (not used in 3+ months)</label>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Active Subscriptions</h2>
+    <button class="filter-btn" id="filter-btn" onclick="toggleFilter()">Show unused only</button>
+  </div>
+  <div class="subs-list" id="subs-list"></div>
+
+</div>
+<script>
+  let subs = [], savedTotal = 0, showUnusedOnly = false;
+
+  const $ = id => document.getElementById(id);
+  const toMo = (cost, cycle) => cycle === 'yearly' ? cost / 12 : cost;
+  const fmt = n => '$' + n.toFixed(2);
+
+  const PALETTES = [
+    {bg:'rgba(255,77,109,.15)',color:'#ff4d6d'},
+    {bg:'rgba(255,209,102,.15)',color:'#ffd166'},
+    {bg:'rgba(6,214,160,.15)',color:'#06d6a0'},
+    {bg:'rgba(100,149,237,.15)',color:'#6495ed'},
+    {bg:'rgba(200,130,255,.15)',color:'#c882ff'},
+  ];
+
+  const iconStyle = name => PALETTES[name.charCodeAt(0) % PALETTES.length];
+  const initials  = name => name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+
+  function addSub() {
+    const name = $('svc-name').value.trim();
+    const cost = parseFloat($('svc-cost').value);
+    const cycle = $('svc-cycle').value;
+    const unused = $('mark-unused').checked;
+    if (!name || isNaN(cost) || cost <= 0) return $('svc-name').focus();
+    subs.push({id: Date.now(), name, cost, cycle, unused});
+    $('svc-name').value = $('svc-cost').value = '';
+    $('mark-unused').checked = false;
+    render();
+  }
+
+  function cancelSub(id) {
+    const sub = subs.find(s => s.id === id);
+    if (!sub) return;
+    savedTotal += toMo(sub.cost, sub.cycle);
+    subs = subs.filter(s => s.id !== id);
+    const b = $('savings-banner');
+    b.style.display = 'block';
+    b.textContent = `✓ You've saved ${fmt(savedTotal)}/month by cancelling subscriptions this session.`;
+    render();
+  }
+
+  function toggleFilter() {
+    showUnusedOnly = !showUnusedOnly;
+    $('filter-btn').textContent = showUnusedOnly ? 'Show all' : 'Show unused only';
+    render();
+  }
+
+  function render() {
+    const list = $('subs-list');
+    const visible = showUnusedOnly ? subs.filter(s => s.unused) : subs;
+
+    if (!subs.length) {
+      list.innerHTML = '<div class="empty"><span>📋</span>No subscriptions yet. Add your first one above.</div>';
+    } else if (!visible.length) {
+      list.innerHTML = '<div class="empty"><span>✅</span>No unused subscriptions found.</div>';
+    } else {
+      list.innerHTML = visible.map(s => {
+        const mo = toMo(s.cost, s.cycle);
+        const {bg, color} = iconStyle(s.name);
+        return `<div class="sub-card ${s.unused?'unused':''}">
+          <div class="sub-icon" style="background:${bg};color:${color}">${initials(s.name)}</div>
+          <div class="sub-info">
+            <div class="sub-name">${s.name}</div>
+            <div class="sub-detail">${s.cycle==='yearly'?`Billed yearly (${fmt(s.cost)}/yr)`:'Billed monthly'}${s.unused?' · Unused 3+ months':''}</div>
+          </div>
+          ${s.unused?'<span class="unused-badge">Unused</span>':''}
+          <div class="sub-cost">
+            <div class="sub-monthly">${fmt(mo)}/mo</div>
+            ${s.cycle==='yearly'?`<div class="sub-original">(${fmt(s.cost)}/yr ÷ 12)</div>`:''}
+          </div>
+          <button class="btn-cancel" onclick="cancelSub(${s.id})">Cancel</button>
+        </div>`;
+      }).join('');
+    }
+
+    const total = subs.reduce((sum, s) => sum + toMo(s.cost, s.cycle), 0);
+    $('total-burn').textContent  = fmt(total);
+    $('annual-proj').textContent = fmt(total * 12);
+    $('saved').textContent       = fmt(savedTotal);
+  }
+
+  ['svc-name','svc-cost'].forEach(id =>
+    $(id).addEventListener('keydown', e => e.key === 'Enter' && addSub())
+  );
+
+  render();
+</script>
+</body>
+</html>
