@@ -10,7 +10,6 @@
 <body>
 <div class="container">
 
-  <!-- HEADER -->
   <header class="header">
     <div class="logo">
       <div class="logo-icon">🛡️</div>
@@ -22,17 +21,21 @@
     <span class="header-tag">BUDGET GUARD</span>
   </header>
 
-  <!-- DASHBOARD METRICS -->
   <div class="dashboard">
     <div class="metric burn">
       <div class="metric-label">Monthly Burn</div>
       <div class="metric-value" id="total-burn">$0.00</div>
-      <div class="metric-sub">normalized to /mo</div>
+      <div class="metric-sub">active subs only</div>
     </div>
     <div class="metric proj">
       <div class="metric-label">Annual Projection</div>
       <div class="metric-value" id="annual-proj">$0.00</div>
       <div class="metric-sub">if nothing cancelled</div>
+    </div>
+    <div class="metric paused">
+      <div class="metric-label">Paused / On Hold</div>
+      <div class="metric-value" id="paused-total">$0.00</div>
+      <div class="metric-sub">not counting toward burn</div>
     </div>
     <div class="metric saved">
       <div class="metric-label">Saved This Session</div>
@@ -41,10 +44,8 @@
     </div>
   </div>
 
-  <!-- SAVINGS BANNER -->
   <div id="savings-banner"></div>
 
-  <!-- ADD SUBSCRIPTION FORM -->
   <div class="form-card">
     <h2>// Add Subscription</h2>
     <div class="form-row">
@@ -71,7 +72,6 @@
     </div>
   </div>
 
-  <!-- SUBSCRIPTION LIST -->
   <div class="section-head">
     <h2>Active Subscriptions</h2>
     <div class="section-controls">
@@ -81,11 +81,17 @@
   </div>
   <div class="subs-list" id="subs-list" role="list"></div>
 
+  <!-- HISTORY SECTION -->
+  <div class="history-section">
+    <div class="history-controls">
+      <button class="filter-btn" id="history-toggle-btn" onclick="toggleHistory()">Show history</button>
+    </div>
+    <div id="history-panel"></div>
+  </div>
+
 </div>
 
-<!-- TOAST NOTIFICATION -->
 <div id="toast" role="status" aria-live="polite"></div>
-
 <script src="js.js"></script>
 </body>
 </html>
